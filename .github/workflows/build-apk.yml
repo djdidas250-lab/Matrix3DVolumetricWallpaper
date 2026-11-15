@@ -8,20 +8,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: |
-          python3 -c '
-          import os,zlib,struct
-          for d in ["app/src/main/java/c/m","app/src/main/res/xml","app/src/main/res/values","app/src/main/res/drawable"]: os.makedirs(d,exist_ok=True)
-          open("settings.gradle","w").write("pluginManagement{repositories{google();mavenCentral();gradlePluginPortal()}};dependencyResolutionManagement{repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS);repositories{google();mavenCentral()}};include \":app\"")
-          open("build.gradle","w").write("plugins{id \"com.android.application\" version \"8.2.2\" apply false;id \"org.jetbrains.kotlin.android\" version \"1.9.22\" apply false}")
-          open("gradle.properties","w").write("android.useAndroidX=true")
-          open("app/build.gradle","w").write("plugins{id \"com.android.application\";id \"org.jetbrains.kotlin.android\"};android{namespace \"c.m\";compileSdk 34;defaultConfig{applicationId \"com.example.matrix3dvol\";minSdk 26;targetSdk 34;versionCode 2;versionName \"1.1\"};compileOptions{sourceCompatibility JavaVersion.VERSION_17;targetCompatibility JavaVersion.VERSION_17};kotlinOptions{jvmTarget=\"17\"}};dependencies{implementation \"androidx.core:core-ktx:1.12.0\"}")
-          u="http://android.com"
-          open("app/src/main/AndroidManifest.xml","w").write(f"<manifest xmlns:android=\"{u}\"><uses-feature android:name=\"android.software.live_wallpaper\" android:required=\"true\"/><application android:hardwareAccelerated=\"true\" android:icon=\"@drawable/ic\" android:label=\"@string/n\"><activity android:name=\".MainActivity\" android:exported=\"true\"><intent-filter><action android:name=\"android.intent.action.MAIN\"/><category android:name=\"android.intent.category.LAUNCHER\"/></intent-filter></activity><service android:name=\".W\" android:enabled=\"true\" android:exported=\"true\" android:label=\"@string/n\" android:permission=\"android.permission.BIND_WALLPAPER\"><intent-filter><action android:name=\"android.service.wallpaper.WallpaperService\"/></intent-filter><meta-data android:name=\"android.service.wallpaper\" android:resource=\"@xml/w\"/></service></application></manifest>")
-          open("app/src/main/res/xml/w.xml","w").write(f"<wallpaper xmlns:android=\"{u}\" android:settingsActivity=\"c.m.MainActivity\" android:thumbnail=\"@drawable/ic\"/>")
-          open("app/src/main/res/values/strings.xml","w").write("<resources><string name=\"n\">Matrix 3D Volumetric</string></resources>")
-          c=lambda t,b:struct.pack("!I",len(b))+t+b+struct.pack("!I",zlib.crc32(t+b)&0xffffffff)
-          open("app/src/main/res/drawable/ic.png","wb").write(b"\x89PNG\r\n\x1a\n"+c(b"IHDR",struct.pack("!IIBBBBB",32,32,8,6,0,0,0))+c(b"IDAT",zlib.compress(b"".join(b"\x00"+b"\x00\xff\x55\xff"*32 for _ in range(32))))+c(b"IEND",b""))
-          '
+          mkdir -p app/src/main/java/c/m app/src/main/res/xml app/src/main/res/values app/src/main/res/drawable
+          echo 'pluginManagement{repositories{google();mavenCentral();gradlePluginPortal()}};dependencyResolutionManagement{repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS);repositories{google();mavenCentral()}};include ":app"' > settings.gradle
+          echo 'plugins{id "com.android.application" version "8.2.2" apply false;id "org.jetbrains.kotlin.android" version "1.9.22" apply false}' > build.gradle
+          echo 'android.useAndroidX=true' > gradle.properties
+          echo 'plugins{id "com.android.application";id "org.jetbrains.kotlin.android"};android{namespace "c.m";compileSdk 34;defaultConfig{applicationId "com.example.matrix3dvol";minSdk 26;targetSdk 34;versionCode 2;versionName "1.1"};compileOptions{sourceCompatibility JavaVersion.VERSION_17;targetCompatibility JavaVersion.VERSION_17};kotlinOptions{jvmTarget="17"}};dependencies{implementation "androidx.core:core-ktx:1.12.0"}' > app/build.gradle
+          cat << 'EOF' > app/src/main/AndroidManifest.xml
+          <manifest xmlns:android="http://android.com">
+              <uses-feature android:name="android.software.live_wallpaper" android:required="true"/>
+              <application android:hardwareAccelerated="true" android:icon="@drawable/ic" android:label="@string/n">
+                  <activity android:name=".MainActivity" android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+                  <service android:name=".W" android:enabled="true" android:exported="true" android:label="@string/n" android:permission="android.permission.BIND_WALLPAPER">
+                      <intent-filter>
+                          <action android:name="android.service.wallpaper.WallpaperService"/>
+                      </intent-filter>
+                      <meta-data android:name="android.service.wallpaper" android:resource="@xml/w"/>
+                  </service>
+              </application>
+          </manifest>
+          EOF
+          cat << 'EOF' > app/src/main/res/xml/w.xml
+          <wallpaper xmlns:android="http://android.com" android:settingsActivity="c.m.MainActivity" android:thumbnail="@drawable/ic"/>
+          EOF
+          echo '<resources><string name="n">Matrix 3D Volumetric</string></resources>' > app/src/main/res/values/strings.xml
+          python3 -c 'import zlib,struct;c=lambda t,b:struct.pack("!I",len(b))+t+b+struct.pack("!I",zlib.crc32(t+b)&0xffffffff);open("app/src/main/res/drawable/ic.png","wb").write(b"\x89PNG\r\n\x1a\n"+c(b"IHDR",struct.pack("!IIBBBBB",32,32,8,6,0,0,0))+c(b"IDAT",zlib.compress(b"".join(b"\x00"+b"\x00\xff\x55\xff"*32 for _ in range(32))))+c(b"IEND",b""))'
           cat << 'EOF' > app/src/main/java/c/m/MainActivity.kt
           package c.m
           import android.app.*;import android.content.*;import android.graphics.*;import android.os.Bundle;import android.widget.*
