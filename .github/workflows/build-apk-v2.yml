@@ -7,63 +7,55 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Generate Project Files
-        run: |
+      - run: |
           python3 - << 'PYEOF'
           import os, zlib, struct
 
           if os.path.exists("README.md"):
               p = "https://"
               s = p + "img.shields.io/github"
-              r = os.environ.get("GITHUB_REPOSITORY", "djdidas250-lab/Matrix3DVolumetricWallpaper")
+              r = "djdidas250-lab/Matrix3DVolumetricWallpaper"
               b = f"[![APK Downloads]({s}/downloads/{r}/total?color=00ff55&label=APK%20Downloads&style=for-the-badge)](../../releases/download/v1.0/app-debug.apk) [![Version]({s}/v/release/{r}?color=00cc44&label=Version&style=for-the-badge)](../../releases/download/v1.0/app-debug.apk)"
               text = open("README.md").read()
               lines = text.splitlines()
-              if len(lines) > 3 and "img.shields.io" not in lines[3]:
-                  open("README.md", "w").write(text.replace(lines[3], b, 1))
+              if len(lines) > 3 and "img.shields.io" not in lines:
+                  open("README.md", "w").write(text.replace(lines, b, 1))
 
-          os.makedirs("app/src/main/java/c/m", exist_ok=True)
-          os.makedirs("app/src/main/res/xml", exist_ok=True)
-          os.makedirs("app/src/main/res/values", exist_ok=True)
-          os.makedirs("app/src/main/res/drawable", exist_ok=True)
+          for d in ["app/src/main/java/c/m", "app/src/main/res/xml", "app/src/main/res/values", "app/src/main/res/drawable"]:
+              os.makedirs(d, exist_ok=True)
 
-          open("settings.gradle", "w").write('pluginManagement{repositories{google();mavenCentral();gradlePluginPortal()}};dependencyResolutionManagement{repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS);repositories{google();mavenCentral()}};include ":app"\n')
-          open("build.gradle", "w").write('plugins{id "com.android.application" version "8.2.2" apply false;id "org.jetbrains.kotlin.android" version "1.9.22" apply false}\n')
-          open("gradle.properties", "w").write('android.useAndroidX=true\n')
-          open("app/build.gradle", "w").write('plugins{id "com.android.application";id "org.jetbrains.kotlin.android"};android{namespace "c.m";compileSdk 34;defaultConfig{applicationId "com.example.matrix3dvolumetric";minSdk 26;targetSdk 34;versionCode 1;versionName "1.0"};compileOptions{sourceCompatibility JavaVersion.VERSION_17;targetCompatibility JavaVersion.VERSION_17};kotlinOptions{jvmTarget="17"}};dependencies{implementation "androidx.core:core-ktx:1.12.0"}\n')
-
-          manifest = '''<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-            <uses-feature android:name="android.software.live_wallpaper" android:required="true"/>
-            <application android:hardwareAccelerated="true" android:icon="@drawable/ic" android:label="@string/n">
-              <activity android:name=".MainActivity" android:exported="true">
-                <intent-filter>
-                  <action android:name="android.intent.action.MAIN"/>
-                  <category android:name="android.intent.category.LAUNCHER"/>
-                </intent-filter>
-              </activity>
-              <service android:name=".W" android:enabled="true" android:exported="true" android:label="@string/n" android:permission="android.permission.BIND_WALLPAPER">
-                <intent-filter>
-                  <action android:name="android.service.wallpaper.WallpaperService"/>
-                </intent-filter>
-                <meta-data android:name="android.service.wallpaper" android:resource="@xml/w"/>
-              </service>
-            </application>
-          </manifest>'''
-          open("app/src/main/AndroidManifest.xml", "w").write(manifest)
-          open("app/src/main/res/xml/w.xml", "w").write('<wallpaper xmlns:android="http://schemas.android.com/apk/res/android" android:settingsActivity="c.m.MainActivity" android:thumbnail="@drawable/ic"/>')
-          open("app/src/main/res/values/strings.xml", "w").write('<resources><string name="n">Matrix 3D</string></resources>')
+          def make_png(path, w=96, h=96):
+              raw = b""
+              for y in range(h):
+                  row = b"\x00"
+                  for x in range(w):
+                      if 16 <= x < 80 and 16 <= y < 80 and (x % 12 < 6):
+                          row += b"\x00\xff\x55\xff"
+                      else:
+                          row += b"\x00\x11\x05\xff"
+                  raw += row
+              def chunk(tag, data):
+                  return struct.pack("!I", len(data)) + tag + data + struct.pack("!I", zlib.crc32(tag + data) & 0xffffffff)
+              png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack("!IIBBBBB", w, h, 8, 6, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b"")
+              open(path, "wb").write(png)
 
           if os.path.exists("res/drawable/ic.png"):
               open("app/src/main/res/drawable/ic.png", "wb").write(open("res/drawable/ic.png", "rb").read())
           else:
-              w, h = 64, 64
-              raw = b"".join(b"\x00" + b"\x00\xff\x55\xff" * w for _ in range(h))
-              def chunk(t, d):
-                  return struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xffffffff)
-              png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b"")
-              open("app/src/main/res/drawable/ic.png", "wb").write(png)
+              make_png("app/src/main/res/drawable/ic.png")
 
-          main_kt = '''package c.m
+          open("settings.gradle", "w").write('pluginManagement{repositories{google();mavenCentral();gradlePluginPortal()}};dependencyResolutionManagement{repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS);repositories{google();mavenCentral()}};include ":app"\n')
+          open("build.gradle", "w").write('plugins{id "com.android.application" version "8.2.2" apply false;id "org.jetbrains.kotlin.android" version "1.9.22" apply false}\n')
+          open("gradle.properties", "w").write('android.useAndroidX=true\n')
+          open("app/build.gradle", "w").write('plugins{id "com.android.application";id "org.jetbrains.kotlin.android"};android{namespace "c.m";compileSdk 34;defaultConfig{applicationId "com.example.matrix3dvol";minSdk 26;targetSdk 34;versionCode 1;versionName "1.0"};compileOptions{sourceCompatibility JavaVersion.VERSION_17;targetCompatibility JavaVersion.VERSION_17};kotlinOptions{jvmTarget="17"}};dependencies{implementation "androidx.core:core-ktx:1.12.0"}\n')
+
+          u = "http://schemas.android.com/apk/res/android"
+          manifest = f'<manifest xmlns:android="{u}"><uses-feature android:name="android.software.live_wallpaper" android:required="true"/><application android:hardwareAccelerated="true" android:icon="@drawable/ic" android:label="@string/n"><activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity><service android:name=".W" android:enabled="true" android:exported="true" android:label="@string/n" android:permission="android.permission.BIND_WALLPAPER"><intent-filter><action android:name="android.service.wallpaper.WallpaperService"/></intent-filter><meta-data android:name="android.service.wallpaper" android:resource="@xml/w"/></service></application></manifest>'
+          open("app/src/main/AndroidManifest.xml", "w").write(manifest)
+          open("app/src/main/res/xml/w.xml", "w").write(f'<wallpaper xmlns:android="{u}" android:settingsActivity="c.m.MainActivity" android:thumbnail="@drawable/ic"/>')
+          open("app/src/main/res/values/strings.xml", "w").write('<resources><string name="n">Matrix 3D Volumetric</string></resources>')
+
+          main_kt = r'''package c.m
           import android.app.*
           import android.content.*
           import android.graphics.*
@@ -76,30 +68,80 @@ jobs:
                   val p = getSharedPreferences("m", 0)
                   val sv = ScrollView(this).apply { setBackgroundColor(Color.BLACK) }
                   val r = LinearLayout(this).apply { orientation = 1; setPadding(56, 90, 56, 64) }
-                  fun l(s: String) = TextView(this).apply { text = s; setTextColor(Color.GREEN); textSize = 15f; typeface = Typeface.MONOSPACE; setPadding(0, 18, 0, 6) }
-                  val dev = TextView(this).apply { text = "Developer: Dj DiD@S\n-H@CK the PL@NET-"; setTextColor(Color.rgb(0, 255, 120)); textSize = 18f; typeface = Typeface.MONOSPACE; gravity = 17; setPadding(0, 0, 0, 26) }
+                  fun l(s: String) = TextView(this).apply {
+                      text = s; setTextColor(Color.GREEN); textSize = 15f; typeface = Typeface.MONOSPACE; setPadding(0, 18, 0, 6)
+                  }
+                  val dev = TextView(this).apply {
+                      text = "Developer: Dj DiD@S\n-H@CK the PL@NET-"
+                      setTextColor(Color.rgb(0, 255, 120)); textSize = 18f; typeface = Typeface.MONOSPACE; gravity = 17; setPadding(0, 0, 0, 26)
+                  }
                   val ths = arrayOf("MATRIX GREEN", "CYBER CYAN", "CRIMSON RED", "SOLAR GOLD", "ULTRAVIOLET", "RAINBOW PRISM")
                   val bTh = Button(this).apply {
                       text = "THEME: ${ths[p.getInt("th", 0) % 6]}"
                       setBackgroundColor(Color.DKGRAY); setTextColor(Color.GREEN)
-                      setOnClickListener { val n = (p.getInt("th", 0) + 1) % 6; p.edit().putInt("th", n).apply(); text = "THEME: ${ths[n]}" }
+                      setOnClickListener {
+                          val n = (p.getInt("th", 0) + 1) % 6
+                          p.edit().putInt("th", n).apply()
+                          text = "THEME: ${ths[n]}"
+                      }
                   }
                   val t1 = l("FALL SPEED: ${p.getInt("sp", 12)}")
-                  val s1 = SeekBar(this).apply { max = 28; progress = p.getInt("sp", 12) - 2; setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener { override fun onProgressChanged(s: SeekBar?, v: Int, f: Boolean) { t1.text = "FALL SPEED: ${v + 2}"; p.edit().putInt("sp", v + 2).apply() }; override fun onStartTrackingTouch(s: SeekBar?) {}; override fun onStopTrackingTouch(s: SeekBar?) {} }) }
+                  val s1 = SeekBar(this).apply {
+                      max = 28; progress = p.getInt("sp", 12) - 2
+                      setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                          override fun onProgressChanged(s: SeekBar?, v: Int, f: Boolean) { t1.text = "FALL SPEED: ${v + 2}"; p.edit().putInt("sp", v + 2).apply() }
+                          override fun onStartTrackingTouch(s: SeekBar?) {}
+                          override fun onStopTrackingTouch(s: SeekBar?) {}
+                      })
+                  }
                   val t2 = l("3D GLYPH SCALE: ${p.getInt("sz", 42)}")
-                  val s2 = SeekBar(this).apply { max = 48; progress = p.getInt("sz", 42) - 20; setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener { override fun onProgressChanged(s: SeekBar?, v: Int, f: Boolean) { t2.text = "3D GLYPH SCALE: ${v + 20}"; p.edit().putInt("sz", v + 20).apply() }; override fun onStartTrackingTouch(s: SeekBar?) {}; override fun onStopTrackingTouch(s: SeekBar?) {} }) }
+                  val s2 = SeekBar(this).apply {
+                      max = 48; progress = p.getInt("sz", 42) - 20
+                      setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                          override fun onProgressChanged(s: SeekBar?, v: Int, f: Boolean) { t2.text = "3D GLYPH SCALE: ${v + 20}"; p.edit().putInt("sz", v + 20).apply() }
+                          override fun onStartTrackingTouch(s: SeekBar?) {}
+                          override fun onStopTrackingTouch(s: SeekBar?) {}
+                      })
+                  }
                   val t3 = l("STREAM DENSITY: ${p.getInt("dn", 85)}")
-                  val s3 = SeekBar(this).apply { max = 90; progress = p.getInt("dn", 85) - 30; setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener { override fun onProgressChanged(s: SeekBar?, v: Int, f: Boolean) { t3.text = "STREAM DENSITY: ${v + 30}"; p.edit().putInt("dn", v + 30).apply() }; override fun onStartTrackingTouch(s: SeekBar?) {}; override fun onStopTrackingTouch(s: SeekBar?) {} }) }
+                  val s3 = SeekBar(this).apply {
+                      max = 90; progress = p.getInt("dn", 85) - 30
+                      setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                          override fun onProgressChanged(s: SeekBar?, v: Int, f: Boolean) { t3.text = "STREAM DENSITY: ${v + 30}"; p.edit().putInt("dn", v + 30).apply() }
+                          override fun onStartTrackingTouch(s: SeekBar?) {}
+                          override fun onStopTrackingTouch(s: SeekBar?) {}
+                      })
+                  }
                   val t4 = l("EFFECT INTENSITY: ${p.getInt("in", 65)}%")
-                  val s4 = SeekBar(this).apply { max = 140; progress = p.getInt("in", 65) - 10; setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener { override fun onProgressChanged(s: SeekBar?, v: Int, f: Boolean) { t4.text = "EFFECT INTENSITY: ${v + 10}%"; p.edit().putInt("in", v + 10).apply() }; override fun onStartTrackingTouch(s: SeekBar?) {}; override fun onStopTrackingTouch(s: SeekBar?) {} }) }
+                  val s4 = SeekBar(this).apply {
+                      max = 140; progress = p.getInt("in", 65) - 10
+                      setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                          override fun onProgressChanged(s: SeekBar?, v: Int, f: Boolean) { t4.text = "EFFECT INTENSITY: ${v + 10}%"; p.edit().putInt("in", v + 10).apply() }
+                          override fun onStartTrackingTouch(s: SeekBar?) {}
+                          override fun onStopTrackingTouch(s: SeekBar?) {}
+                      })
+                  }
                   val t5 = l("BLOOM & BOKEH: ${p.getInt("bl", 35)}%")
-                  val s5 = SeekBar(this).apply { max = 100; progress = p.getInt("bl", 35); setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener { override fun onProgressChanged(s: SeekBar?, v: Int, f: Boolean) { t5.text = "BLOOM & BOKEH: ${v}%"; p.edit().putInt("bl", v).apply() }; override fun onStartTrackingTouch(s: SeekBar?) {}; override fun onStopTrackingTouch(s: SeekBar?) {} }) }
-                  fun sw(lb: String, k: String) = Switch(this).apply { text = lb; isChecked = p.getBoolean(k, true); setTextColor(Color.WHITE); typeface = Typeface.MONOSPACE; setPadding(0, 14, 0, 14); setOnCheckedChangeListener { _, v -> p.edit().putBoolean(k, v).apply() } }
+                  val s5 = SeekBar(this).apply {
+                      max = 100; progress = p.getInt("bl", 35)
+                      setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                          override fun onProgressChanged(s: SeekBar?, v: Int, f: Boolean) { t5.text = "BLOOM & BOKEH: ${v}%"; p.edit().putInt("bl", v).apply() }
+                          override fun onStartTrackingTouch(s: SeekBar?) {}
+                          override fun onStopTrackingTouch(s: SeekBar?) {}
+                      })
+                  }
+                  fun sw(lb: String, k: String) = Switch(this).apply {
+                      text = lb; isChecked = p.getBoolean(k, true); setTextColor(Color.WHITE); typeface = Typeface.MONOSPACE; setPadding(0, 14, 0, 14)
+                      setOnCheckedChangeListener { _, v -> p.edit().putBoolean(k, v).apply() }
+                  }
                   val btn = Button(this).apply {
                       text = "SET 3D WALLPAPER"; setBackgroundColor(Color.GREEN); setTextColor(Color.BLACK)
                       setOnClickListener {
-                          try { startActivity(Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER).putExtra(WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT, ComponentName(this@MainActivity, W::class.java))) }
-                          catch (e: Exception) { startActivity(Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER)) }
+                          try {
+                              startActivity(Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER).putExtra(WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT, ComponentName(this@MainActivity, W::class.java)))
+                          } catch (e: Exception) {
+                              startActivity(Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER))
+                          }
                       }
                   }
                   r.addView(dev); r.addView(bTh); r.addView(t1); r.addView(s1); r.addView(t2); r.addView(s2); r.addView(t3); r.addView(s3); r.addView(t4); r.addView(s4); r.addView(t5); r.addView(s5)
@@ -110,7 +152,7 @@ jobs:
           '''
           open("app/src/main/java/c/m/MainActivity.kt", "w").write(main_kt)
 
-          w_kt = '''package c.m
+          w_kt = r'''package c.m
 
           import android.content.Context
           import android.hardware.Sensor
@@ -128,6 +170,8 @@ jobs:
           import javax.microedition.khronos.egl.*
           import kotlin.math.*
           import kotlin.random.Random
+
+          class GlyphMesh(val buffer: FloatBuffer, val vertexCount: Int)
 
           class W : WallpaperService() {
               override fun onCreateEngine(): Engine = Matrix3DEngine()
@@ -184,8 +228,8 @@ jobs:
                   }
 
                   override fun onSensorChanged(event: SensorEvent) {
-                      tiltX = tiltX * 0.9f + (event.values[0] / 9.8f) * 0.1f
-                      tiltY = tiltY * 0.9f + (event.values[1] / 9.8f) * 0.1f
+                      tiltX = tiltX * 0.9f + (event.values / 9.8f) * 0.1f
+                      tiltY = tiltY * 0.9f + (event.values / 9.8f) * 0.1f
                   }
 
                   override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
@@ -239,8 +283,8 @@ jobs:
                           )
                           val configs = arrayOfNulls<EGLConfig>(1)
                           egl.eglChooseConfig(display, configSpec, configs, 1, IntArray(1))
-                          val ctx = egl.eglCreateContext(display, configs[0], EGL10.EGL_NO_CONTEXT, intArrayOf(0x3098, 2, EGL10.EGL_NONE))
-                          val surface = egl.eglCreateWindowSurface(display, configs[0], holder, null)
+                          val ctx = egl.eglCreateContext(display, configs, EGL10.EGL_NO_CONTEXT, intArrayOf(0x3098, 2, EGL10.EGL_NONE))
+                          val surface = egl.eglCreateWindowSurface(display, configs, holder, null)
                           egl.eglMakeCurrent(display, surface, surface, ctx)
 
                           val vShader = """
@@ -387,7 +431,7 @@ jobs:
                                   Matrix.multiplyMM(mvpMatrix, 0, vpMatrix, 0, modelMatrix, 0)
 
                                   val rgb = getThemeColor(theme, d.isHead, time + d.x * 0.2f, intensity)
-                                  GLES20.glUniform3f(hColor, rgb[0], rgb[1], rgb[2])
+                                  GLES20.glUniform3f(hColor, rgb, rgb, rgb)
                                   GLES20.glUniform1f(hAlpha, d.trailAlpha)
                                   GLES20.glUniform1f(hBloom, bloom * (if (d.isHead) 1.5f else 0.7f))
                                   GLES20.glUniformMatrix4fv(hModel, 1, false, modelMatrix, 0)
@@ -432,8 +476,6 @@ jobs:
                               GLES20.glCompileShader(it)
                           }
                       }
-
-                      private class GlyphMesh(val buffer: FloatBuffer, val vertexCount: Int)
 
                       private fun buildExtrudedGlyphMesh(rows: IntArray): GlyphMesh {
                           val verts = ArrayList<Float>()
