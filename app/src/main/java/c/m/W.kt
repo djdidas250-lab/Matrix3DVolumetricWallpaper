@@ -44,8 +44,9 @@ class W : WallpaperService() {
                 e.eglInitialize(d, IntArray(2))
                 val cf = arrayOfNulls<EGLConfig>(1)
                 e.eglChooseConfig(d, intArrayOf(EGL10.EGL_RENDERABLE_TYPE, 4, EGL10.EGL_RED_SIZE, 8, EGL10.EGL_GREEN_SIZE, 8, EGL10.EGL_BLUE_SIZE, 8, EGL10.EGL_DEPTH_SIZE, 16, EGL10.EGL_NONE), cf, 1, IntArray(1))
-                val c = e.eglCreateContext(d, cf, EGL10.EGL_NO_CONTEXT, intArrayOf(0x3098, 2, EGL10.EGL_NONE))
-                val s = e.eglCreateWindowSurface(d, cf, h, null)
+                val cfg = cf.get(0)
+                val c = e.eglCreateContext(d, cfg, EGL10.EGL_NO_CONTEXT, intArrayOf(0x3098, 2, EGL10.EGL_NONE))
+                val s = e.eglCreateWindowSurface(d, cfg, h, null)
                 e.eglMakeCurrent(d, s, s, c)
 
                 val vs = "uniform mat4 uM,uP;attribute vec4 aP;attribute vec3 aN;varying vec3 vN;void main(){vN=mat3(uM)*aN;gl_Position=uP*aP;}"
@@ -102,7 +103,7 @@ class W : WallpaperService() {
                     for (col in cols) {
                         col.y -= sp * col.spd
                         col.spin += 1.4f
-                        if (Random.nextFloat() < 0.08f) col.ch[Random.nextInt(col.len)] = Random.nextInt(ms.size)
+                        if (Random.nextFloat() < 0.08f) col.ch.set(Random.nextInt(col.len), Random.nextInt(ms.size))
                         if (col.y + col.len * step < -11f) { col.y = 12f; col.x = (Random.nextFloat() - 0.5f) * 14f; col.z = -Random.nextFloat() * 12f - 1f }
                         for (i in 0 until col.len) {
                             val gy = col.y + i * step
@@ -111,9 +112,9 @@ class W : WallpaperService() {
                 fun q(a:Float,b:Float,c:Float,e:Float,f:Float,g:Float,h:Float,i:Float,j:Float,k:Float,l:Float,m:Float,nx:Float,ny:Float,nz:Float) {
                     for (z in floatArrayOf(a,b,c,nx,ny,nz,e,f,g,nx,ny,nz,h,i,j,nx,ny,nz,a,b,c,nx,ny,nz,h,i,j,nx,ny,nz,k,l,m,nx,ny,nz)) v.add(z)
                 }
-                for (r in 0..6) for (c in 0..4) if ((rw[r] and (1 shl (4 - c))) != 0) {
-                    val x0 = (c - 2.5f) * s; val x1 = x0 + s * 0.92f
-                    val y1 = (3.5f - r) * s; val y0 = y1 - s * 0.92f
+                for (row in 0..6) for (colIdx in 0..4) if ((rw.get(row) and (1 shl (4 - colIdx))) != 0) {
+                    val x0 = (colIdx - 2.5f) * s; val x1 = x0 + s * 0.92f
+                    val y1 = (3.5f - row) * s; val y0 = y1 - s * 0.92f
                     q(x0,y0,d,x1,y0,d,x1,y1,d,x0,y1,d,0f,0f,1f); q(x1,y0,-d,x0,y0,-d,x0,y1,-d,x1,y1,-d,0f,0f,-1f)
                     q(x0,y0,-d,x0,y0,d,x0,y1,d,x0,y1,-d,-1f,0f,0f); q(x1,y0,d,x1,y0,-d,x1,y1,-d,x1,y1,d,1f,0f,0f)
                     q(x0,y1,d,x1,y1,d,x1,y1,-d,x0,y1,-d,0f,1f,0f); q(x0,y0,-d,x1,y0,-d,x1,y0,d,x0,y0,d,0f,-1f,0f)
