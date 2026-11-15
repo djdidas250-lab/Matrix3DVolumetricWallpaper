@@ -13,29 +13,7 @@ jobs:
           echo 'plugins{id "com.android.application" version "8.2.2" apply false;id "org.jetbrains.kotlin.android" version "1.9.22" apply false}' > build.gradle
           echo 'android.useAndroidX=true' > gradle.properties
           echo 'plugins{id "com.android.application";id "org.jetbrains.kotlin.android"};android{namespace "c.m";compileSdk 34;defaultConfig{applicationId "com.example.matrix3dvol";minSdk 26;targetSdk 34;versionCode 2;versionName "1.1"};compileOptions{sourceCompatibility JavaVersion.VERSION_17;targetCompatibility JavaVersion.VERSION_17};kotlinOptions{jvmTarget="17"}};dependencies{implementation "androidx.core:core-ktx:1.12.0"}' > app/build.gradle
-          cat << 'EOF' > app/src/main/AndroidManifest.xml
-          <manifest xmlns:android="http://android.com">
-              <uses-feature android:name="android.software.live_wallpaper" android:required="true"/>
-              <application android:hardwareAccelerated="true" android:icon="@drawable/ic" android:label="@string/n">
-                  <activity android:name=".MainActivity" android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN"/>
-                          <category android:name="android.intent.category.LAUNCHER"/>
-                      </intent-filter>
-                  </activity>
-                  <service android:name=".W" android:enabled="true" android:exported="true" android:label="@string/n" android:permission="android.permission.BIND_WALLPAPER">
-                      <intent-filter>
-                          <action android:name="android.service.wallpaper.WallpaperService"/>
-                      </intent-filter>
-                      <meta-data android:name="android.service.wallpaper" android:resource="@xml/w"/>
-                  </service>
-              </application>
-          </manifest>
-          EOF
-          cat << 'EOF' > app/src/main/res/xml/w.xml
-          <wallpaper xmlns:android="http://android.com" android:settingsActivity="c.m.MainActivity" android:thumbnail="@drawable/ic"/>
-          EOF
-          echo '<resources><string name="n">Matrix 3D Volumetric</string></resources>' > app/src/main/res/values/strings.xml
+          python3 -c 'q=chr(34);e=chr(61);a="android"+chr(58);u="ht"+"tp://"+"schemas."+"android."+"com/apk/res/android";x=f"<manifest xmlns:{a[:-1]}{e}{q}{u}{q}><uses-feature {a}name{e}{q}android.software.live_wallpaper{q} {a}required{e}{q}true{q}/><application {a}hardwareAccelerated{e}{q}true{q} {a}icon{e}{q}@drawable/ic{q} {a}label{e}{q}@string/n{q}><activity {a}name{e}{q}.MainActivity{q} {a}exported{e}{q}true{q}><intent-filter><action {a}name{e}{q}android.intent.action.MAIN{q}/><category {a}name{e}{q}android.intent.category.LAUNCHER{q}/></intent-filter></activity><service {a}name{e}{q}.W{q} {a}enabled{e}{q}true{q} {a}exported{e}{q}true{q} {a}label{e}{q}@string/n{q} {a}permission{e}{q}android.permission.BIND_WALLPAPER{q}><intent-filter><action {a}name{e}{q}android.service.wallpaper.WallpaperService{q}/></intent-filter><meta-data {a}name{e}{q}android.service.wallpaper{q} {a}resource{e}{q}@xml/w{q}/></service></application></manifest>";open("app/src/main/AndroidManifest.xml","w").write(x);open("app/src/main/res/xml/w.xml","w").write(f"<wallpaper xmlns:{a[:-1]}{e}{q}{u}{q} {a}settingsActivity{e}{q}c.m.MainActivity{q} {a}thumbnail{e}{q}@drawable/ic{q}/>");open("app/src/main/res/values/strings.xml","w").write(f"<resources><string name{e}{q}n{q}>Matrix 3D Volumetric</string></resources>")'
           python3 -c 'import zlib,struct;c=lambda t,b:struct.pack("!I",len(b))+t+b+struct.pack("!I",zlib.crc32(t+b)&0xffffffff);open("app/src/main/res/drawable/ic.png","wb").write(b"\x89PNG\r\n\x1a\n"+c(b"IHDR",struct.pack("!IIBBBBB",32,32,8,6,0,0,0))+c(b"IDAT",zlib.compress(b"".join(b"\x00"+b"\x00\xff\x55\xff"*32 for _ in range(32))))+c(b"IEND",b""))'
           cat << 'EOF' > app/src/main/java/c/m/MainActivity.kt
           package c.m
