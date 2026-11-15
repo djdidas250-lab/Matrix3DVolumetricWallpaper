@@ -1,1 +1,454 @@
+name: Build APK
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          mkdir -p app/src/main/java/c/m app/src/main/res/xml app/src/main/res/values app/src/main/res/drawable
+          echo 'pluginManagement{repositories{google();mavenCentral();gradlePluginPortal()}};dependencyResolutionManagement{repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS);repositories{google();mavenCentral()}};include ":app"' > settings.gradle
+          echo 'plugins{id "com.android.application" version "8.2.2" apply false;id "org.jetbrains.kotlin.android" version "1.9.22" apply false}' > build.gradle
+          echo 'android.useAndroidX=true' > gradle.properties
+          echo 'plugins{id "com.android.application";id "org.jetbrains.kotlin.android"};android{namespace "c.m";compileSdk 34;defaultConfig{applicationId "com.example.matrix3d.volumetric";minSdk 26;targetSdk 34;versionCode 1;versionName "1.0"};compileOptions{sourceCompatibility JavaVersion.VERSION_17;targetCompatibility JavaVersion.VERSION_17};kotlinOptions{jvmTarget="17"}};dependencies{implementation "androidx.core:core-ktx:1.12.0"}' > app/build.gradle
+          python3 -c '
+          import struct, zlib, os
+          q=chr(34);e=chr(61);u="ht"+"tp://"+"schemas."+"android."+"com/apk/res/android"
+          x=f"<manifest xmlns:android{e}{q}{u}{q}><uses-feature android:name{e}{q}android.software.live_wallpaper{q} android:required{e}{q}true{q}/><application android:hardwareAccelerated{e}{q}true{q} android:icon{e}{q}@drawable/ic{q} android:label{e}{q}@string/n{q}><activity android:name{e}{q}.MainActivity{q} android:exported{e}{q}true{q}><intent-filter><action android:name{e}{q}android.intent.action.MAIN{q}/><category android:name{e}{q}android.intent.category.LAUNCHER{q}/></intent-filter></activity><service android:name{e}{q}.W{q} android:enabled{e}{q}true{q} android:exported{e}{q}true{q} android:label{e}{q}@string/n{q} android:permission{e}{q}android.permission.BIND_WALLPAPER{q}><intent-filter><action android:name{e}{q}android.service.wallpaper.WallpaperService{q}/></intent-filter><meta-data android:name{e}{q}android.service.wallpaper{q} android:resource{e}{q}@xml/w{q}/></service></application></manifest>"
+          open("app/src/main/AndroidManifest.xml","w").write(x)
+          open("app/src/main/res/xml/w.xml","w").write(f"<wallpaper xmlns:android{e}{q}{u}{q} android:settingsActivity{e}{q}c.m.MainActivity{q} android:thumbnail{e}{q}@drawable/ic{q}/>")
+          open("app/src/main/res/values/strings.xml","w").write(f"<resources><string name{e}{q}n{q}>Matrix 3D Volumetric</string></resources>")
+          if os.path.exists("res/drawable/ic.png"):
+              open("app/src/main/res/drawable/ic.png","wb").write(open("res/drawable/ic.png","rb").read())
+          else:
+              w, h = 96, 96
+              raw = b""
+              for y in range(h):
+                  row = b"\x00"
+                  for x_px in range(w):
+                      dx, dy = abs(x_px - 48), abs(y - 48)
+                      if dx < 28 and dy < 32 and (dx % 8 < 5):
+                          row += b"\x00\xff\x55\xff"
+                      else:
+                          row += b"\x05\x14\x0a\xff"
+                  raw += row
+              def chunk(tag, data):
+                  return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data) & 0xffffffff)
+              png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b"")
+              open("app/src/main/res/drawable/ic.png","wb").write(png)
+          '
+          printf 'package c.m
+import android.app.*;import android.content.*;import android.graphics.*;import android.os.Bundle;import android.widget.*
+class MainActivity:Activity(){
+override fun onCreate(b:Bundle?){
+super.onCreate(b)
+val p=getSharedPreferences("m",0)
+val sv=ScrollView(this).apply{setBackgroundColor(Color.BLACK)}
+val r=LinearLayout(this).apply{orientation=1;setPadding(56,90,56,64)}
+fun l(s:String)=TextView(this).apply{text=s;setTextColor(Color.GREEN);textSize=15f;typeface=Typeface.MONOSPACE;setPadding(0,18,0,6)}
+val dev=TextView(this).apply{text="Developer: Dj DiD@S\n-H@CK the PL@NET-";setTextColor(Color.rgb(0,255,120));textSize=18f;typeface=Typeface.MONOSPACE;gravity=17;setPadding(0,0,0,26)}
+val ths=arrayOf("MATRIX GREEN","CYBER CYAN","CRIMSON RED","SOLAR GOLD","ULTRAVIOLET","RAINBOW PRISM")
+val bTh=Button(this).apply{text="THEME: ${ths[p.getInt("th",0)%%6]}";setBackgroundColor(Color.DKGRAY);setTextColor(Color.GREEN);setOnClickListener{val n=(p.getInt("th",0)+1)%%6;p.edit().putInt("th",n).apply();text="THEME: ${ths[n]}"}}
+val t1=l("FALL SPEED: ${p.getInt("sp",12)}")
+val s1=SeekBar(this).apply{max=28;progress=p.getInt("sp",12)-2;setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener{override fun onProgressChanged(s:SeekBar?,v:Int,f:Boolean){t1.text="FALL SPEED: ${v+2}";p.edit().putInt("sp",v+2).apply()};override fun onStartTrackingTouch(s:SeekBar?){};override fun onStopTrackingTouch(s:SeekBar?){}})}
+val t2=l("3D GLYPH SCALE: ${p.getInt("sz",42)}")
+val s2=SeekBar(this).apply{max=48;progress=p.getInt("sz",42)-20;setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener{override fun onProgressChanged(s:SeekBar?,v:Int,f:Boolean){t2.text="3D GLYPH SCALE: ${v+20}";p.edit().putInt("sz",v+20).apply()};override fun onStartTrackingTouch(s:SeekBar?){};override fun onStopTrackingTouch(s:SeekBar?){}})}
+val t3=l("STREAM DENSITY: ${p.getInt("dn",85)}")
+val s3=SeekBar(this).apply{max=90;progress=p.getInt("dn",85)-30;setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener{override fun onProgressChanged(s:SeekBar?,v:Int,f:Boolean){t3.text="STREAM DENSITY: ${v+30}";p.edit().putInt("dn",v+30).apply()};override fun onStartTrackingTouch(s:SeekBar?){};override fun onStopTrackingTouch(s:SeekBar?){}})}
+val t4=l("EFFECT INTENSITY: ${p.getInt("in",65)}%%")
+val s4=SeekBar(this).apply{max=140;progress=p.getInt("in",65)-10;setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener{override fun onProgressChanged(s:SeekBar?,v:Int,f:Boolean){t4.text="EFFECT INTENSITY: ${v+10}%%";p.edit().putInt("in",v+10).apply()};override fun onStartTrackingTouch(s:SeekBar?){};override fun onStopTrackingTouch(s:SeekBar?){}})}
+val t5=l("BLOOM & BOKEH: ${p.getInt("bl",35)}%%")
+val s5=SeekBar(this).apply{max=100;progress=p.getInt("bl",35);setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener{override fun onProgressChanged(s:SeekBar?,v:Int,f:Boolean){t5.text="BLOOM & BOKEH: ${v}%%";p.edit().putInt("bl",v).apply()};override fun onStartTrackingTouch(s:SeekBar?){};override fun onStopTrackingTouch(s:SeekBar?){}})}
+fun sw(lb:String,k:String)=Switch(this).apply{text=lb;isChecked=p.getBoolean(k,true);setTextColor(Color.WHITE);typeface=Typeface.MONOSPACE;setPadding(0,14,0,14);setOnCheckedChangeListener{_,v->p.edit().putBoolean(k,v).apply()}}
+val btn=Button(this).apply{text="SET 3D WALLPAPER";setBackgroundColor(Color.GREEN);setTextColor(Color.BLACK);setOnClickListener{try{startActivity(Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER).putExtra(WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT,ComponentName(this@MainActivity,W::class.java)))}catch(e:Exception){startActivity(Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER))}}}
+r.addView(dev);r.addView(bTh);r.addView(t1);r.addView(s1);r.addView(t2);r.addView(s2);r.addView(t3);r.addView(s3);r.addView(t4);r.addView(s4);r.addView(t5);r.addView(s5);r.addView(sw("LENS BLOOM & BOKEH","f1"));r.addView(sw("TOUCH 3D VORTEX & SURGE","f2"));r.addView(sw("RAZR FOLD-ADAPTIVE FOV","f3"));r.addView(sw("3-AXIS ROTATION TILT","f4"));r.addView(sw("FLY-OUT 3D GLYPHS","f5"));r.addView(btn);sv.addView(r);setContentView(sv)
+}}
+' > app/src/main/java/c/m/MainActivity.kt
+          cat << 'EOF' > app/src/main/java/c/m/W.kt
+          package c.m
 
+          import android.content.Context
+          import android.hardware.Sensor
+          import android.hardware.SensorEvent
+          import android.hardware.SensorEventListener
+          import android.hardware.SensorManager
+          import android.opengl.GLES20
+          import android.opengl.Matrix
+          import android.service.wallpaper.WallpaperService
+          import android.view.MotionEvent
+          import android.view.SurfaceHolder
+          import java.nio.ByteBuffer
+          import java.nio.ByteOrder
+          import java.nio.FloatBuffer
+          import javax.microedition.khronos.egl.*
+          import kotlin.math.*
+          import kotlin.random.Random
+
+          class W : WallpaperService() {
+              override fun onCreateEngine(): Engine = Matrix3DEngine()
+
+              inner class Matrix3DEngine : Engine(), SensorEventListener {
+                  private var renderThread: RenderThread? = null
+                  private var sensorManager: SensorManager? = null
+                  private var tiltX = 0f
+                  private var tiltY = 0f
+                  private var touchX = -999f
+                  private var touchY = -999f
+                  private var touchForce = 0f
+
+                  override fun onCreate(surfaceHolder: SurfaceHolder) {
+                      super.onCreate(surfaceHolder)
+                      setTouchEventsEnabled(true)
+                      sensorManager = getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+                  }
+
+                  override fun onVisibilityChanged(visible: Boolean) {
+                      if (visible) {
+                          sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.let {
+                              sensorManager?.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME)
+                          }
+                          if (renderThread == null) {
+                              renderThread = RenderThread(surfaceHolder).apply { start() }
+                          }
+                      } else {
+                          sensorManager?.unregisterListener(this)
+                          renderThread?.running = false
+                          renderThread?.join(500)
+                          renderThread = null
+                      }
+                  }
+
+                  override fun onSurfaceDestroyed(holder: SurfaceHolder) {
+                      super.onSurfaceDestroyed(holder)
+                      renderThread?.running = false
+                      renderThread?.join(500)
+                      renderThread = null
+                  }
+
+                  override fun onTouchEvent(event: MotionEvent) {
+                      when (event.action) {
+                          MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                              touchX = event.x
+                              touchY = event.y
+                              touchForce = 1.0f
+                          }
+                          MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                              touchForce = 0f
+                          }
+                      }
+                  }
+
+                  override fun onSensorChanged(event: SensorEvent) {
+                      tiltX = tiltX * 0.9f + (event.values[0] / 9.8f) * 0.1f
+                      tiltY = tiltY * 0.9f + (event.values[1] / 9.8f) * 0.1f
+                  }
+
+                  override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+
+                  private inner class RenderThread(private val holder: SurfaceHolder) : Thread() {
+                      @Volatile var running = true
+                      private val prefs = getSharedPreferences("m", 0)
+
+                      private val glyphBitmaps = arrayOf(
+                          intArrayOf(0x0E,0x11,0x13,0x15,0x19,0x11,0x0E),
+                          intArrayOf(0x04,0x0C,0x04,0x04,0x04,0x04,0x0E),
+                          intArrayOf(0x0E,0x11,0x01,0x06,0x08,0x10,0x1F),
+                          intArrayOf(0x1F,0x02,0x04,0x02,0x01,0x11,0x0E),
+                          intArrayOf(0x1F,0x01,0x02,0x04,0x08,0x08,0x08),
+                          intArrayOf(0x0E,0x11,0x11,0x0E,0x11,0x11,0x0E),
+                          intArrayOf(0x0E,0x11,0x11,0x0F,0x01,0x02,0x0C),
+                          intArrayOf(0x1F,0x01,0x02,0x0C,0x04,0x04,0x04),
+                          intArrayOf(0x02,0x04,0x0C,0x14,0x04,0x04,0x04),
+                          intArrayOf(0x04,0x1F,0x11,0x11,0x01,0x02,0x0C),
+                          intArrayOf(0x1F,0x04,0x04,0x04,0x04,0x04,0x1F),
+                          intArrayOf(0x02,0x1F,0x02,0x06,0x0A,0x12,0x02),
+                          intArrayOf(0x04,0x1F,0x05,0x05,0x09,0x11,0x13),
+                          intArrayOf(0x04,0x1F,0x04,0x1F,0x04,0x04,0x02),
+                          intArrayOf(0x08,0x1F,0x11,0x01,0x02,0x04,0x18),
+                          intArrayOf(0x1F,0x04,0x04,0x04,0x04,0x08,0x10),
+                          intArrayOf(0x08,0x08,0x0E,0x09,0x08,0x08,0x08),
+                          intArrayOf(0x04,0x1F,0x04,0x04,0x04,0x08,0x10),
+                          intArrayOf(0x00,0x0E,0x00,0x00,0x1F,0x00,0x00),
+                          intArrayOf(0x11,0x11,0x11,0x11,0x11,0x12,0x14),
+                          intArrayOf(0x1F,0x01,0x02,0x04,0x0A,0x11,0x00),
+                          intArrayOf(0x08,0x08,0x0A,0x0C,0x08,0x09,0x06),
+                          intArrayOf(0x1F,0x11,0x11,0x01,0x02,0x04,0x18),
+                          intArrayOf(0x04,0x0E,0x15,0x04,0x04,0x04,0x04)
+                      )
+
+                      private inner class GlyphDrop(
+                          var x: Float, var y: Float, var z: Float,
+                          var speed: Float, var glyphIdx: Int,
+                          var rotY: Float, var rotSpeed: Float,
+                          var isHead: Boolean, var trailAlpha: Float
+                      )
+
+                      override fun run() {
+                          val egl = EGLContext.getEGL() as EGL10
+                          val display = egl.eglGetDisplay(EGL10.EGL_DEFAULT_DISPLAY)
+                          egl.eglInitialize(display, IntArray(2))
+                          val configSpec = intArrayOf(
+                              EGL10.EGL_RENDERABLE_TYPE, 4,
+                              EGL10.EGL_RED_SIZE, 8, EGL10.EGL_GREEN_SIZE, 8, EGL10.EGL_BLUE_SIZE, 8,
+                              EGL10.EGL_DEPTH_SIZE, 16, EGL10.EGL_NONE
+                          )
+                          val configs = arrayOfNulls<EGLConfig>(1)
+                          egl.eglChooseConfig(display, configSpec, configs, 1, IntArray(1))
+                          val ctx = egl.eglCreateContext(display, configs[0], EGL10.EGL_NO_CONTEXT, intArrayOf(0x3098, 2, EGL10.EGL_NONE))
+                          val surface = egl.eglCreateWindowSurface(display, configs[0], holder, null)
+                          egl.eglMakeCurrent(display, surface, surface, ctx)
+
+                          val vShader = """
+                              uniform mat4 uMVP;
+                              uniform mat4 uModel;
+                              attribute vec4 aPos;
+                              attribute vec3 aNorm;
+                              varying vec3 vNorm;
+                              void main() {
+                                  vNorm = mat3(uModel) * aNorm;
+                                  gl_Position = uMVP * aPos;
+                              }
+                          """.trimIndent()
+
+                          val fShader = """
+                              precision mediump float;
+                              uniform vec3 uColor;
+                              uniform float uAlpha;
+                              uniform float uBloom;
+                              varying vec3 vNorm;
+                              void main() {
+                                  vec3 lightDir = normalize(vec3(0.4, 0.7, 1.0));
+                                  float diff = max(dot(normalize(vNorm), lightDir), 0.25);
+                                  vec3 rim = uColor * uBloom * (1.0 - abs(normalize(vNorm).z));
+                                  gl_FragColor = vec4(uColor * diff + rim, uAlpha);
+                              }
+                          """.trimIndent()
+
+                          val prog = GLES20.glCreateProgram().also {
+                              GLES20.glAttachShader(it, compileShader(GLES20.GL_VERTEX_SHADER, vShader))
+                              GLES20.glAttachShader(it, compileShader(GLES20.GL_FRAGMENT_SHADER, fShader))
+                              GLES20.glLinkProgram(it)
+                          }
+
+                          val glyphBuffers = glyphBitmaps.map { buildExtrudedGlyphMesh(it) }
+                          val drops = ArrayList<GlyphDrop>()
+                          var width = 1080
+                          var height = 2400
+                          var time = 0f
+
+                          GLES20.glEnable(GLES20.GL_DEPTH_TEST)
+                          GLES20.glEnable(GLES20.GL_BLEND)
+                          GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
+
+                          val projMatrix = FloatArray(16)
+                          val viewMatrix = FloatArray(16)
+                          val modelMatrix = FloatArray(16)
+                          val mvpMatrix = FloatArray(16)
+                          val vpMatrix = FloatArray(16)
+
+                          while (running) {
+                              val frame = holder.surfaceFrame
+                              if (frame.width() > 0 && frame.height() > 0) {
+                                  width = frame.width()
+                                  height = frame.height()
+                              }
+                              GLES20.glViewport(0, 0, width, height)
+                              GLES20.glClearColor(0f, 0.02f, 0.01f, 1f)
+                              GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
+
+                              val theme = prefs.getInt("th", 0) % 6
+                              val fallSpeed = prefs.getInt("sp", 12) * 0.008f
+                              val scale = prefs.getInt("sz", 42) * 0.015f
+                              val density = prefs.getInt("dn", 85) * 4
+                              val intensity = prefs.getInt("in", 65) / 100f
+                              val bloom = prefs.getInt("bl", 35) / 100f
+                              val fVortex = prefs.getBoolean("f2", true)
+                              val fFoldFov = prefs.getBoolean("f3", true)
+                              val fTilt = prefs.getBoolean("f4", true)
+                              val fFlyOut = prefs.getBoolean("f5", true)
+
+                              while (drops.size < density) {
+                                  val zPos = if (fFlyOut) Random.nextFloat() * 18f - 14f else Random.nextFloat() * 10f - 12f
+                                  drops.add(GlyphDrop(
+                                      x = (Random.nextFloat() - 0.5f) * 16f,
+                                      y = (Random.nextFloat() - 0.5f) * 24f,
+                                      z = zPos,
+                                      speed = 0.6f + Random.nextFloat() * 0.9f,
+                                      glyphIdx = Random.nextInt(glyphBuffers.size),
+                                      rotY = Random.nextFloat() * 360f,
+                                      rotSpeed = (Random.nextFloat() - 0.5f) * 140f,
+                                      isHead = Random.nextFloat() < 0.18f,
+                                      trailAlpha = 0.35f + Random.nextFloat() * 0.65f
+                                  ))
+                              }
+                              while (drops.size > density) drops.removeAt(drops.lastIndex)
+
+                              val aspect = width.toFloat() / height.toFloat()
+                              val fov = if (fFoldFov && aspect > 0.75f) 65f else 50f
+                              Matrix.perspectiveM(projMatrix, 0, fov, aspect, 0.5f, 40f)
+
+                              val camX = if (fTilt) tiltX * 2.5f else 0f
+                              val camY = if (fTilt) -tiltY * 2.5f else 0f
+                              Matrix.setLookAtM(viewMatrix, 0, camX, camY, 8f, 0f, 0f, -4f, 0f, 1f, 0f)
+                              Matrix.multiplyMM(vpMatrix, 0, projMatrix, 0, viewMatrix, 0)
+
+                              GLES20.glUseProgram(prog)
+                              val hMVP = GLES20.glGetUniformLocation(prog, "uMVP")
+                              val hModel = GLES20.glGetUniformLocation(prog, "uModel")
+                              val hColor = GLES20.glGetUniformLocation(prog, "uColor")
+                              val hAlpha = GLES20.glGetUniformLocation(prog, "uAlpha")
+                              val hBloom = GLES20.glGetUniformLocation(prog, "uBloom")
+                              val hPos = GLES20.glGetAttribLocation(prog, "aPos")
+                              val hNorm = GLES20.glGetAttribLocation(prog, "aNorm")
+
+                              GLES20.glEnableVertexAttribArray(hPos)
+                              GLES20.glEnableVertexAttribArray(hNorm)
+
+                              time += 0.016f
+                              if (touchForce > 0f) touchForce *= 0.96f
+
+                              for (d in drops) {
+                                  d.y -= fallSpeed * d.speed
+                                  d.rotY += d.rotSpeed * 0.016f
+                                  if (fFlyOut) d.z += fallSpeed * 0.45f
+                                  if (Random.nextFloat() < 0.03f) d.glyphIdx = Random.nextInt(glyphBuffers.size)
+
+                                  if (d.y < -12f || d.z > 6.5f) {
+                                      d.y = 12f
+                                      d.x = (Random.nextFloat() - 0.5f) * 16f
+                                      d.z = if (fFlyOut) -14f else Random.nextFloat() * 10f - 12f
+                                  }
+
+                                  var drawX = d.x
+                                  var drawY = d.y
+                                  if (fVortex && touchForce > 0.05f) {
+                                      val tx = ((touchX / width) - 0.5f) * 12f
+                                      val ty = (0.5f - (touchY / height)) * 18f
+                                      val dx = drawX - tx
+                                      val dy = drawY - ty
+                                      val dist = sqrt(dx * dx + dy * dy) + 0.1f
+                                      if (dist < 4.5f) {
+                                          val push = (4.5f - dist) * 0.35f * touchForce
+                                          drawX += (dx / dist) * push - (dy / dist) * push * 0.5f
+                                          drawY += (dy / dist) * push + (dx / dist) * push * 0.5f
+                                      }
+                                  }
+
+                                  Matrix.setIdentityM(modelMatrix, 0)
+                                  Matrix.translateM(modelMatrix, 0, drawX, drawY, d.z)
+                                  Matrix.rotateM(modelMatrix, 0, d.rotY, 0f, 1f, 0f)
+                                  if (fTilt) Matrix.rotateM(modelMatrix, 0, tiltX * 25f, 1f, 0f, 0f)
+                                  Matrix.scaleM(modelMatrix, 0, scale, scale, scale)
+                                  Matrix.multiplyMM(mvpMatrix, 0, vpMatrix, 0, modelMatrix, 0)
+
+                                  val rgb = getThemeColor(theme, d.isHead, time + d.x * 0.2f, intensity)
+                                  GLES20.glUniform3f(hColor, rgb[0], rgb[1], rgb[2])
+                                  GLES20.glUniform1f(hAlpha, d.trailAlpha)
+                                  GLES20.glUniform1f(hBloom, bloom * (if (d.isHead) 1.5f else 0.7f))
+                                  GLES20.glUniformMatrix4fv(hModel, 1, false, modelMatrix, 0)
+                                  GLES20.glUniformMatrix4fv(hMVP, 1, false, mvpMatrix, 0)
+
+                                  val mesh = glyphBuffers[d.glyphIdx]
+                                  mesh.buffer.position(0)
+                                  GLES20.glVertexAttribPointer(hPos, 3, GLES20.GL_FLOAT, false, 24, mesh.buffer)
+                                  mesh.buffer.position(3)
+                                  GLES20.glVertexAttribPointer(hNorm, 3, GLES20.GL_FLOAT, false, 24, mesh.buffer)
+                                  GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, mesh.vertexCount)
+                              }
+
+                              egl.eglSwapBuffers(display, surface)
+                          }
+                          egl.eglMakeCurrent(display, EGL10.EGL_NO_SURFACE, EGL10.EGL_NO_SURFACE, EGL10.EGL_NO_CONTEXT)
+                          egl.eglDestroySurface(display, surface)
+                          egl.eglDestroyContext(display, ctx)
+                          egl.eglTerminate(display)
+                      }
+
+                      private fun getThemeColor(theme: Int, head: Boolean, t: Float, intensity: Float): FloatArray {
+                          if (head) return floatArrayOf(0.85f, 1.0f, 0.9f)
+                          val b = (0.55f + 0.45f * intensity).coerceIn(0.2f, 1.2f)
+                          return when (theme) {
+                              1 -> floatArrayOf(0.0f, 0.85f * b, 1.0f * b)
+                              2 -> floatArrayOf(1.0f * b, 0.12f * b, 0.2f * b)
+                              3 -> floatArrayOf(1.0f * b, 0.78f * b, 0.1f * b)
+                              4 -> floatArrayOf(0.75f * b, 0.2f * b, 1.0f * b)
+                              5 -> floatArrayOf(
+                                  (0.5f + 0.5f * sin(t)) * b,
+                                  (0.5f + 0.5f * sin(t + 2.1f)) * b,
+                                  (0.5f + 0.5f * sin(t + 4.2f)) * b
+                              )
+                              else -> floatArrayOf(0.05f * b, 1.0f * b, 0.35f * b)
+                          }
+                      }
+
+                      private fun compileShader(type: Int, src: String): Int {
+                          return GLES20.glCreateShader(type).also {
+                              GLES20.glShaderSource(it, src)
+                              GLES20.glCompileShader(it)
+                          }
+                      }
+
+                      private class GlyphMesh(val buffer: FloatBuffer, val vertexCount: Int)
+
+                      private fun buildExtrudedGlyphMesh(rows: IntArray): GlyphMesh {
+                          val verts = ArrayList<Float>()
+                          val s = 0.16f
+                          val d = 0.22f
+
+                          fun addQuad(
+                              x1: Float, y1: Float, z1: Float,
+                              x2: Float, y2: Float, z2: Float,
+                              x3: Float, y3: Float, z3: Float,
+                              x4: Float, y4: Float, z4: Float,
+                              nx: Float, ny: Float, nz: Float
+                          ) {
+                              val pts = floatArrayOf(
+                                  x1,y1,z1,nx,ny,nz, x2,y2,z2,nx,ny,nz, x3,y3,z3,nx,ny,nz,
+                                  x1,y1,z1,nx,ny,nz, x3,y3,z3,nx,ny,nz, x4,y4,z4,nx,ny,nz
+                              )
+                              for (v in pts) verts.add(v)
+                          }
+
+                          for (r in 0 until 7) {
+                              for (c in 0 until 5) {
+                                  if ((rows[r] and (1 shl (4 - c))) != 0) {
+                                      val x0 = (c - 2.5f) * s
+                                      val x1 = x0 + s * 0.92f
+                                      val y1 = (3.5f - r) * s
+                                      val y0 = y1 - s * 0.92f
+                                      val z0 = -d
+                                      val z1 = d
+                                      addQuad(x0,y0,z1, x1,y0,z1, x1,y1,z1, x0,y1,z1, 0f,0f,1f)
+                                      addQuad(x1,y0,z0, x0,y0,z0, x0,y1,z0, x1,y1,z0, 0f,0f,-1f)
+                                      addQuad(x0,y0,z0, x0,y0,z1, x0,y1,z1, x0,y1,z0, -1f,0f,0f)
+                                      addQuad(x1,y0,z1, x1,y0,z0, x1,y1,z0, x1,y1,z1, 1f,0f,0f)
+                                      addQuad(x0,y1,z1, x1,y1,z1, x1,y1,z0, x0,y1,z0, 0f,1f,0f)
+                                      addQuad(x0,y0,z0, x1,y0,z0, x1,y0,z1, x0,y0,z1, 0f,-1f,0f)
+                                  }
+                              }
+                          }
+                          val bb = ByteBuffer.allocateDirect(verts.size * 4).order(ByteOrder.nativeOrder()).asFloatBuffer()
+                          for (v in verts) bb.put(v)
+                          bb.position(0)
+                          return GlyphMesh(bb, verts.size / 6)
+                      }
+                  }
+              }
+          }
+          EOF
+      - uses: actions/setup-java@v4
+        with: { java-version: '17', distribution: 'temurin' }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: '8.4' }
+      - run: gradle assembleDebug
+      - uses: actions/upload-artifact@v4
+        with: { name: Matrix3DVolumetricWallpaper-APK, path: app/build/outputs/apk/debug/app-debug.apk }
+      - name: Publish Release APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0
+          name: Matrix 3D Volumetric Live Wallpaper v1.0
+          files: app/build/outputs/apk/debug/app-debug.apk
+          overwrite: true
